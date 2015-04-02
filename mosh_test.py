@@ -115,7 +115,19 @@ parser.add_argument('--trace', '-r',
                     help="Trace file to use",
                     required=True)
                     
-                    
+parser.add_argument('--user', '-u',
+                    dest="user",
+                    type=str,
+                    action="store",
+                    help="Login username",
+                    required=True)
+
+parser.add_argument('--testdir', '-td',
+                    dest="testdir",
+                    type=str,
+                    action="store",
+                    help="Directory of test script and key files",
+                    required=True)
 
 # Expt parameters
 args = parser.parse_args()
@@ -269,23 +281,46 @@ def test_response_time(net):
     
     h_server.cmd("/usr/sbin/sshd -D&")
     
-    print "Running SSH Test"
-               
-    ssh_cmd = '%s %s ssh ubuntu@%s -i %s -o %s \'"%s %s"\' > %s 2> %s' % \
-             ("/home/ubuntu/cs244/mosh_test/term-replay-client", \
-              str(args.trace), \
-              str(h_server.IP()), \
-              "./private_test_key", \
-              "StrictHostKeyChecking=no", \
-              "cd /home/ubuntu/cs244/mosh_test/; ./term-replay-server", \
+    print "Running " + args.prog + " Test"
+
+    cmd_invocation = '%s %s' % \
+                     (args.testdir + "term-replay-client", \
+                      str(args.trace))
+
+    target_host = '%s@%s' % \
+                  (str(args.user), \
+                   str(h_server.IP()))
+
+    ssh_flags = '-i %s -o %s' % ("./private_test_key", \
+                                 "StrictHostKeyChecking=no")
+
+    ssh_cmd = '%s ssh %s %s \'"%s %s"\' > %s 2> %s' % \
+             (cmd_invocation, \
+              target_host, \
+              str(ssh_flags), \
+              "cd " + args.testdir + "; ./term-replay-server", \
               str(args.trace), \
               args.dir + "/ssh-std-out.txt", \
               args.dir + "/ssh-stderr-out.txt")
                
-    print "ssh_cmd2\n\n"
-    print ssh_cmd
-    
-    h_client.cmd(ssh_cmd)
+    mosh_cmd = '%s mosh %s --ssh=\'"ssh %s"\' \'"%s %s"\' > %s 2> %s' % \
+              (cmd_invocation, \
+               target_host, \
+               str(ssh_flags), \
+               "cd " + args.testdir + "; ./term-replay-server", \
+               str(args.trace), \
+               args.dir + "/mosh-std-out.txt", \
+               args.dir + "/mosh-stderr-out.txt")
+
+    if (args.prog == "SSH"):
+        print "ssh_cmd2\n\n"
+        print ssh_cmd
+        h_client.cmd(ssh_cmd)
+    elif (args.prog == "MOSH"):
+        print "mosh_cmd\n\n"
+        print mosh_cmd
+        h_client.cmd(mosh_cmd)
+
     pass
 
 # TODO: Fill in the following function to verify the latency

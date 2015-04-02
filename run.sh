@@ -28,10 +28,10 @@ iface=s0-eth1
 #  for prog in MOSH SSH; do
 
 for tech in 3G; do
-for prog in SSH; do
+for prog in MOSH; do
   	dir=$rootdir/$tech
 
-  	python mosh_test.py --dir $dir --tech $tech --prog $prog  --trace $trace
+  	python mosh_test.py --dir $dir --tech $tech --prog $prog  --trace $trace --user $SUDO_USER --testdir $(pwd)/
     python plot_cdf.py $dir $tech
 
 	#python $plotpath/plot_queue.py -f $dir/qlen_$iface.txt -o $dir/q.png
