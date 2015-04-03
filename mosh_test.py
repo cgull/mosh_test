@@ -204,8 +204,6 @@ def test_response_time(net):
                 args.dir + "/mosh-std-out.txt", \
                 args.dir + "/mosh-stderr-out.txt")
 
-    CLI(net)
-
     if (args.prog == "SSH"):
         print "ssh_cmd\n\n"
         print ssh_cmd
