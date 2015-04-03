@@ -303,14 +303,28 @@ def test_response_time(net):
               args.dir + "/ssh-std-out.txt", \
               args.dir + "/ssh-stderr-out.txt")
                
-    mosh_cmd = '%s mosh %s --ssh=\'"ssh %s"\' \'"%s %s"\' > %s 2> %s' % \
-              (cmd_invocation, \
-               target_host, \
-               str(ssh_flags), \
-               "cd " + args.testdir + "; ./term-replay-server", \
-               str(args.trace), \
-               args.dir + "/mosh-std-out.txt", \
-               args.dir + "/mosh-stderr-out.txt")
+#    mosh_cmd = '%s mosh %s --ssh=\'"ssh %s"\' \'"%s %s"\' > %s 2> %s' % \
+#              (cmd_invocation, \
+#              target_host, \
+#               str(ssh_flags), \
+#               "cd " + args.testdir + "; ./term-replay-server", \
+#               str(args.trace), \
+#               args.dir + "/mosh-std-out.txt", \
+#               args.dir + "/mosh-stderr-out.txt")
+
+    iptables_setp_cmd_a = 'sudo iptables -I INPUT 1 --proto udp -j ACCEPT'
+    iptables_setp_cmd_b = 'sudo iptables -I OUTPUT 1 --proto udp -j ACCEPT'
+
+    mosh_cmd = '%s "mosh --bind-server=any --ssh=\\\"ssh %s\\\" -- %s sh -c \\\"%s %s\\\"" > %s 2> %s' % \
+               (cmd_invocation, \
+                str(ssh_flags), \
+                target_host, \
+                "cd " + args.testdir + "; ./term-replay-server", \
+                str(args.trace), \
+                args.dir + "/mosh-std-out.txt", \
+                args.dir + "/mosh-stderr-out.txt")
+
+    CLI(net)
 
     if (args.prog == "SSH"):
         print "ssh_cmd2\n\n"
@@ -319,8 +333,13 @@ def test_response_time(net):
     elif (args.prog == "MOSH"):
         print "mosh_cmd\n\n"
         print mosh_cmd
-        h_client.cmd(mosh_cmd)
-
+        h_client.cmd(iptables_setp_cmd_a, shell=True)
+        h_client.cmd(iptables_setp_cmd_b, shell=True)
+        h_server.cmd(iptables_setp_cmd_a, shell=True)
+        h_server.cmd(iptables_setp_cmd_b, shell=True)
+        hc_proc = h_client.popen(mosh_cmd, shell=True)
+        while(hc_proc.poll() == None):
+            sleep(1)
     pass
 
 # TODO: Fill in the following function to verify the latency
