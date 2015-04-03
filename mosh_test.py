@@ -22,38 +22,8 @@ import os
 from util.monitor import monitor_qlen
 from util.helper import stdev
 
-
-# Number of samples to skip for reference util calibration.
-CALIBRATION_SKIP = 10
-#CALIBRATION_SKIP = 5
-
-# Number of samples to grab for reference util calibration.
-CALIBRATION_SAMPLES = 30
-#CALIBRATION_SAMPLES = 15
-
-# Set the fraction of the link utilization that the measurement must exceed
-# to be considered as having enough buffering.
-TARGET_UTIL_FRACTION = 0.98
-#TARGET_UTIL_FRACTION = 0.95
-
-# Fraction of input bandwidth required to begin the experiment.
-# At exactly 100%, the experiment may take awhile to start, or never start,
-# because it effectively requires waiting for a measurement or link speed
-# limiting error.
-START_BW_FRACTION = 0.9
-
-
-# Number of samples to take in get_rates() before returning.
-NSAMPLES = 3
-#NSAMPLES = 2
-
-# Time to wait between samples, in seconds, as a float.
-SAMPLE_PERIOD_SEC = 1.0
-#SAMPLE_PERIOD_SEC = 0.5
-
-# Time to wait for first sample, in seconds, as a float.
-SAMPLE_WAIT_SEC = 3.0
-#SAMPLE_WAIT_SEC = 2.0
+# Number of samples to take in verify latency
+NSAMPLES = 5
 
 # Delay in milliseconds.  Will be changed based on test tech.
 DELAY = 200.0
@@ -67,10 +37,6 @@ DROP_RATE = 0.0
 # Jitter factor. Will change based on test tech.
 JITTER_FACTOR = 0.5
 
-# Tech to use.  MOSH or SSH.
-MOSH_PATH = "/usr/bin/mosh"
-SSH_PATH = "/usr/bin/ssh"
-TECH_PATH = ""
 
 
 def cprint(s, color, cr=True):
@@ -147,128 +113,42 @@ class StarTopo(Topo):
         # topology Set appropriate values for bandwidth, delay, and queue
         # size.
         
-        if (prog == "MOSH"):
-            TECH_PATH = MOSH_PATH
-        else:
-            TECH_PATH = SSH_PATH
+        global BANDWIDTH
+        global DELAY
+        global JITTER_FACTOR
+        global DROP_RATE
         
+        if tech == "4G_LTE":
+            BANDWIDTH = 26.0
+            DELAY = 44.5
+            JITTER_FACTOR = .11
+            DROP_RATE = 0.0
+        elif tech == "4G_LTE_FLAKY":
+            BANDWIDTH = 3.0
+            DELAY = 67.5
+            JITTER_FACTOR = 0.30
+            DROP_RATE = 0.063  
+        elif tech == "3G":
+            BANDWIDTH = 3.0
+            DELAY = 61.5
+            JITTER_FACTOR = 0.24
+            DROP_RATE = 0.013
+        elif tech == "3G_FLAKY":
+            BANDWIDTH = 0.9
+            DELAY = 74.5
+            JITTER_FACTOR = 0.40
+            DROP_RATE = 0.087
+        elif tech == "WIFI":
+            BANDWIDTH = 68
+            DELAY = 4.0
+            JITTER_FACTOR = 0.38
+            DROP_RATE = 0.0         
         
         h_server = self.addHost('server')
         h_client = self.addHost('client')
         self.addLink(h_server, h_client, bw=BANDWIDTH, delay=(str(DELAY) + "ms"), loss=DROP_RATE, jitter=(str(DELAY * JITTER_FACTOR) + "ms"))
         
         return
-
-def start_tcpprobe():
-    "Install tcp_probe module and dump to file"
-    print "Starting TCP Probe"
-    os.system("rmmod tcp_probe 2>/dev/null; modprobe tcp_probe;")
-    Popen("cat /proc/net/tcpprobe > %s/tcp_probe.txt" %
-          args.dir, shell=True)
-
-def stop_tcpprobe():
-    os.system("killall -9 cat; rmmod tcp_probe &>/dev/null;")
-
-def count_connections():
-    "Count current connections in iperf output file"
-    out = args.dir + "/iperf_server.txt"
-    lines = Popen("grep connected %s | wc -l" % out,
-                  shell=True, stdout=PIPE).communicate()[0]
-    return int(lines)
-
-def set_q(iface, q):
-    "Change queue size limit of interface"
-    cmd = ("tc qdisc change dev %s parent 5:1 "
-           "handle 10: netem limit %s" % (iface, q))
-    #os.system(cmd)
-    subprocess.check_output(cmd, shell=True)
-
-def set_speed(iface, spd):
-    "Change htb maximum rate for interface"
-    cmd = ("tc class change dev %s parent 5:0 classid 5:1 "
-           "htb rate %s burst 15k" % (iface, spd))
-    os.system(cmd)
-
-def get_txbytes(iface):
-    f = open('/proc/net/dev', 'r')
-    lines = f.readlines()
-    for line in lines:
-        if iface in line:
-            break
-    f.close()
-    if not line:
-        raise Exception("could not find iface %s in /proc/net/dev:%s" %
-                        (iface, lines))
-    # Extract TX bytes from:
-    #Inter-|   Receive                                                |  Transmit
-    # face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
-    # lo: 6175728   53444    0    0    0     0          0         0  6175728   53444    0    0    0     0       0          0
-    return float(line.split()[9])
-
-def get_rates(iface, nsamples=NSAMPLES, period=SAMPLE_PERIOD_SEC,
-              wait=SAMPLE_WAIT_SEC):
-    """Returns the interface @iface's current utilization in Mb/s.  It
-    returns @nsamples samples, and each sample is the average
-    utilization measured over @period time.  Before measuring it waits
-    for @wait seconds to 'warm up'."""
-    # Returning nsamples requires one extra to start the timer.
-    nsamples += 1
-    last_time = 0
-    last_txbytes = 0
-    ret = []
-    sleep(wait)
-    while nsamples:
-        nsamples -= 1
-        txbytes = get_txbytes(iface)
-        now = time()
-        elapsed = now - last_time
-        #if last_time:
-        #    print "elapsed: %0.4f" % (now - last_time)
-        last_time = now
-        # Get rate in Mbps; correct for elapsed time.
-        rate = (txbytes - last_txbytes) * 8.0 / 1e6 / elapsed
-        if last_txbytes != 0:
-            # Wait for 1 second sample
-            ret.append(rate)
-        last_txbytes = txbytes
-        print '.',
-        sys.stdout.flush()
-        sleep(period)
-    return ret
-
-def avg(s):
-    "Compute average of list or string of values"
-    if ',' in s:
-        lst = [float(f) for f in s.split(',')]
-    elif type(s) == str:
-        lst = [float(s)]
-    elif type(s) == list:
-        lst = s
-    return sum(lst)/len(lst)
-
-def median(l):
-    "Compute median from an unsorted list of values"
-    s = sorted(l)
-    if len(s) % 2 == 1:
-        return s[(len(l) + 1) / 2 - 1]
-    else:
-        lower = s[len(l) / 2 - 1]
-        upper = s[len(l) / 2]
-        return float(lower + upper) / 2
-
-def format_floats(lst):
-    "Format list of floats to three decimal places"
-    return ', '.join(['%.3f' % f for f in lst])
-
-def ok(fraction):
-    "Fraction is OK if it is >= args.target"
-    return fraction >= args.target
-
-def format_fraction(fraction):
-    "Format and colorize fraction"
-    if ok(fraction):
-        return T.colored('%.3f' % fraction, 'green')
-    return T.colored('%.3f' % fraction, 'red', attrs=["bold"])
 
 def test_response_time(net):
     h_server = net.get('server')
@@ -281,7 +161,7 @@ def test_response_time(net):
     
     h_server.cmd("/usr/sbin/sshd -D&")
     
-    print "Running " + args.prog + " Test"
+    print "Running " + args.prog + " Test with tech " + str(args.tech)
 
     cmd_invocation = '%s %s' % \
                      (args.testdir + "term-replay-client", \
@@ -327,7 +207,7 @@ def test_response_time(net):
     CLI(net)
 
     if (args.prog == "SSH"):
-        print "ssh_cmd2\n\n"
+        print "ssh_cmd\n\n"
         print ssh_cmd
         h_client.cmd(ssh_cmd)
     elif (args.prog == "MOSH"):
@@ -358,7 +238,7 @@ def verify_latency(net):
     print "DELAY is %.1f" % DELAY
 
     if (RTT_fail):
-        print "System latency not within 10%% of desired delay"
+        print "System latency not within %.0f%% of desired delay" % (JITTER_FACTOR * 100)
         sys.exit(1)
 
     print "System latency verified"
@@ -376,7 +256,7 @@ def verify_bandwidth(net):
     [ expBW, cBW, sBW ] = net.iperf(host_list, 'UDP', '%sM' % (BANDWIDTH), None, 10);
     outBW = sBW.split(' ')[0]
     if (abs(float(BANDWIDTH) - float(outBW)) > (JITTER_FACTOR * BANDWIDTH)):
-        print "Bottleneck bandwidth not within 10%% of desired bandwidth"
+        print "Bottleneck bandwidth not within %.0f%% of desired bandwidth" % (JITTER_FACTOR * 100)
         sys.exit(1)
 
     print "System bandwidth verified"
