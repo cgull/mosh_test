@@ -56,13 +56,16 @@ SAMPLE_WAIT_SEC = 3.0
 #SAMPLE_WAIT_SEC = 2.0
 
 # Delay in milliseconds.  Will be changed based on test tech.
-DELAY = 5.0
+DELAY = 50.0
+
+# Bandwidth in MB/s.  Will be changed based on test tech.
+BANDWIDTH = 50.0
 
 # Drop rate.  Will be changed based on test tech.
-DROP_RATE = 0.0
+DROP_RATE = 10.0
 
 # Tech to use.  MOSH or SSH.
-MOSH_PATH = "TBD"
+MOSH_PATH = "/usr/bin/mosh"
 SSH_PATH = "/usr/bin/ssh"
 TECH_PATH = ""
 
@@ -120,7 +123,15 @@ class StarTopo(Topo):
         # topology Set appropriate values for bandwidth, delay, and queue
         # size.
         
-        #TBD
+        if (prog == "MOSH"):
+            TECH_PATH = MOSH_PATH
+        else:
+            TECH_PATH = SSH_PATH
+        
+        
+        h_server = self.addHost('server')
+        h_client = self.addHost('client')
+        self.addLink(h_server, h_client, bw=BANDWIDTH, delay=(str(DELAY) + "ms"), loss=DROP_RATE)
         
         return
 
@@ -247,15 +258,16 @@ def test_response_time(iface):
 def verify_latency(net):
     "Verify link latency"
     # use ping to figure out the latency and verify it matches what we expect
-    h_a = net.get('ha')
-    h_b = net.get('hb')
-    h_a_RTT = float(h_a.cmd("ping -c %d %s | tail -1| awk -F '/' '{print $5}'" % (NSAMPLES, str(server.IP()))))
-    h_b_RTT = float(h_b.cmd("ping -c %d %s | tail -1| awk -F '/' '{print $5}'" % (NSAMPLES, str(server.IP()))))
+    h_server = net.get('server')
+    h_client = net.get('client')
+    RTT = float(h_client.cmd("ping -c %d %s | tail -1| awk -F '/' '{print $5}'" % (NSAMPLES, str(h_server.IP()))))
 
-    h_a_RTT_fail = abs(h_a_RTT - args.delay * 2) >  args.delay * 2 * 0.1
-    h_b_RTT_fail = abs(h_b_RTT - args.delay * 2) >  args.delay * 2 * 0.1
+    RTT_fail = abs(RTT - DELAY * 2) >  DELAY * 2 * 0.1
+    
+    print "RTT is: %.1f" % RTT
+    print "DELAY is %.1f" % DELAY
 
-    if (h_a_RTT_fail or h_b_RTT_fail):
+    if (RTT_fail):
         print "System latency not within 10%% of desired delay"
         sys.exit(1)
 
@@ -267,14 +279,13 @@ def verify_latency(net):
 
 def verify_bandwidth(net):
     print "Verifying link bandwidths..."
-    h_a = net.get('ha')
-    h_b = net.get('hb')
-    serv = net.get('hc')
-    host_list = [h_a, serv]
+    h_server = net.get('server')
+    h_client = net.get('client')
+    host_list = [h_server, h_client]
     # use iperf in mininet to get the bandwidth
-    [ expBW, cBW, sBW ] = net.iperf(host_list, 'UDP', '%sM' % (args.bw_net), None, 10);
+    [ expBW, cBW, sBW ] = net.iperf(host_list, 'UDP', '%sM' % (BANDWIDTH), None, 10);
     outBW = sBW.split(' ')[0]
-    if (abs(float(args.bw_net) - float(outBW)) > (0.1 * args.bw_net)):
+    if (abs(float(BANDWIDTH) - float(outBW)) > (0.1 * BANDWIDTH)):
         print "Bottleneck bandwidth not within 10%% of desired bandwidth"
         sys.exit(1)
 

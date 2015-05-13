@@ -2,3 +2,5 @@ Team:
 Kevin McKenzie (kmckenzi)
 Patrick Harvey (p1harvey)
 
+Setup:
+sudo apt-get install mosh
