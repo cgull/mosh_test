@@ -62,7 +62,7 @@ DELAY = 200.0
 BANDWIDTH = 5.0
 
 # Drop rate.  Will be changed based on test tech.
-DROP_RATE = 0
+DROP_RATE = 0.0
 
 # Tech to use.  MOSH or SSH.
 MOSH_PATH = "/usr/bin/mosh"
@@ -131,7 +131,7 @@ class StarTopo(Topo):
         
         h_server = self.addHost('server')
         h_client = self.addHost('client')
-        self.addLink(h_server, h_client, bw=BANDWIDTH, delay=(str(DELAY) + "ms"), loss=DROP_RATE)
+        self.addLink(h_server, h_client, bw=BANDWIDTH, delay=(str(DELAY) + "ms"), loss=DROP_RATE, jitter=(str(DELAY * .1) + "ms"))
         
         return
 
@@ -266,15 +266,14 @@ def test_response_time(net):
               "./private_test_key", \
               "StrictHostKeyChecking=no", \
               "cd /home/ubuntu/cs244/mosh_test/; ./term-replay-server", \
-              "term_trace_1", \
-              "ssh-std-out.txt", \
-              "ssh-stderr-out.txt")
+              "term_trace_1 2> " args.dir + "/server-stderr-out.txt", \
+              args.dir + "/ssh-std-out.txt", \
+              args.dir + "/ssh-stderr-out.txt")
                
-    print "ssh_cmd\n\n"
+    print "ssh_cmd2\n\n"
     print ssh_cmd
     
     h_client.cmd(ssh_cmd)
-    
     pass
 
 # TODO: Fill in the following function to verify the latency
