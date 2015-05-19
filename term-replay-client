@@ -14,6 +14,8 @@ my $logfile = shift;
 
 my $command = join " ", @ARGV;
 
+print STDOUT $command;
+
 my $pty = new IO::Pty::Easy;
 
 $pty->spawn( $command );
@@ -48,17 +50,17 @@ while ( <LOGFILE> ) {
     WAIT: while ( 1 ) {
       my $x = $pty->read( 0.5 );
       if ( defined $x ) {
-	$got = 1;
-	print $x;
-	if ( $timestamp - $last_user < 20000 ) {
-	  my $host_recd = Time::HiRes::time();
-	  printf STDERR "Delay: %.10f\n", $host_recd - $last_user_sent;
-	  $last_user = 0;
-	}
+      	$got = 1;
+      	print $x;
+      	if ( $timestamp - $last_user < 20000 ) {
+      	  my $host_recd = Time::HiRes::time();
+      	  printf STDERR "Delay: %.10f\n", $host_recd - $last_user_sent;
+      	  $last_user = 0;
+      	}
       } else {
-	if ( $got ) {
-	  last WAIT;
-	}
+      	if ( $got ) {
+      	  last WAIT;
+      	}
       }
     }
   } elsif ( $tag eq "USER" ) {

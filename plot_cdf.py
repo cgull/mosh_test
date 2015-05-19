@@ -1,4 +1,4 @@
-import matplotlib
+B1;2cimport matplotlib
 matplotlib.use('Agg')
 import itertools
 import matplotlib.pyplot as plt
@@ -48,4 +48,6 @@ if __name__ == '__main__':
     plt.plot(base[:-1], data, c='blue')
     plt.xlabel('Keystroke response time (seconds)')
     plt.ylabel('Percentage')
+    plt.xlim([0,1])
+    plt.ylim([0,100])
     plt.savefig(test_dir + "/" + test_tech + ".png")

@@ -30,7 +30,7 @@ for prog in SSH; do
   	dir=$rootdir/$tech
 
   	python mosh_test.py --dir $dir --tech $tech --prog $prog
-    python plot_cdf.py $dir $tech
+	python plot_cdf.py $dir $tech
 
 	#python $plotpath/plot_queue.py -f $dir/qlen_$iface.txt -o $dir/q.png
 	#python $plotpath/plot_tcpprobe.py -f $dir/tcp_probe.txt -o $dir/cwnd.png --histogram

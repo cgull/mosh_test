@@ -64,6 +64,9 @@ BANDWIDTH = 5.0
 # Drop rate.  Will be changed based on test tech.
 DROP_RATE = 0.0
 
+# Jitter factor. Will change based on test tech.
+JITTER_FACTOR = 0.5
+
 # Tech to use.  MOSH or SSH.
 MOSH_PATH = "/usr/bin/mosh"
 SSH_PATH = "/usr/bin/ssh"
@@ -131,7 +134,7 @@ class StarTopo(Topo):
         
         h_server = self.addHost('server')
         h_client = self.addHost('client')
-        self.addLink(h_server, h_client, bw=BANDWIDTH, delay=(str(DELAY) + "ms"), loss=DROP_RATE, jitter=(str(DELAY * .1) + "ms"))
+        self.addLink(h_server, h_client, bw=BANDWIDTH, delay=(str(DELAY) + "ms"), loss=DROP_RATE, jitter=(str(DELAY * JITTER_FACTOR) + "ms"))
         
         return
 
@@ -259,14 +262,14 @@ def test_response_time(net):
     
     print "Running SSH Test"
                
-    ssh_cmd = '%s %s ssh ubuntu@%s -i %s -o %s "%s %s" > %s 2> %s' % \
+    ssh_cmd = '%s %s ssh ubuntu@%s -i %s -o %s \'"%s %s"\' > %s 2> %s' % \
              ("/home/ubuntu/cs244/mosh_test/term-replay-client", \
               "term_trace_1", \
               str(h_server.IP()), \
               "./private_test_key", \
               "StrictHostKeyChecking=no", \
               "cd /home/ubuntu/cs244/mosh_test/; ./term-replay-server", \
-              "term_trace_1 2> " + args.dir + "/server-stderr-out.txt", \
+              "term_trace_1", \
               args.dir + "/ssh-std-out.txt", \
               args.dir + "/ssh-stderr-out.txt")
                
@@ -286,7 +289,7 @@ def verify_latency(net):
     h_client = net.get('client')
     RTT = float(h_client.cmd("ping -c %d %s | tail -1| awk -F '/' '{print $5}'" % (NSAMPLES, str(h_server.IP()))))
 
-    RTT_fail = abs(RTT - DELAY * 2) >  DELAY * 2 * 0.1
+    RTT_fail = abs(RTT - DELAY * 2) >  DELAY * 2 * JITTER_FACTOR
     
     print "RTT is: %.1f" % RTT
     print "DELAY is %.1f" % DELAY
@@ -309,7 +312,7 @@ def verify_bandwidth(net):
     # use iperf in mininet to get the bandwidth
     [ expBW, cBW, sBW ] = net.iperf(host_list, 'UDP', '%sM' % (BANDWIDTH), None, 10);
     outBW = sBW.split(' ')[0]
-    if (abs(float(BANDWIDTH) - float(outBW)) > (0.1 * BANDWIDTH)):
+    if (abs(float(BANDWIDTH) - float(outBW)) > (JITTER_FACTOR * BANDWIDTH)):
         print "Bottleneck bandwidth not within 10%% of desired bandwidth"
         sys.exit(1)
 
