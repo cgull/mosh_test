@@ -266,7 +266,7 @@ def test_response_time(net):
               "./private_test_key", \
               "StrictHostKeyChecking=no", \
               "cd /home/ubuntu/cs244/mosh_test/; ./term-replay-server", \
-              "term_trace_1 2> " args.dir + "/server-stderr-out.txt", \
+              "term_trace_1 2> " + args.dir + "/server-stderr-out.txt", \
               args.dir + "/ssh-std-out.txt", \
               args.dir + "/ssh-stderr-out.txt")
                
