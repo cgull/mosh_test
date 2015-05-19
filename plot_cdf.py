@@ -1,4 +1,4 @@
-B1;2cimport matplotlib
+import matplotlib
 matplotlib.use('Agg')
 import itertools
 import matplotlib.pyplot as plt

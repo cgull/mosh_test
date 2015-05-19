@@ -107,6 +107,15 @@ parser.add_argument('--prog', '-p',
                     action="store",
                     help="Program to run (MOSH or SSH)",
                     required=True)
+                    
+parser.add_argument('--trace', '-r',
+                    dest="trace",
+                    type=str,
+                    action="store",
+                    help="Trace file to use",
+                    required=True)
+                    
+                    
 
 # Expt parameters
 args = parser.parse_args()
@@ -264,12 +273,12 @@ def test_response_time(net):
                
     ssh_cmd = '%s %s ssh ubuntu@%s -i %s -o %s \'"%s %s"\' > %s 2> %s' % \
              ("/home/ubuntu/cs244/mosh_test/term-replay-client", \
-              "term_trace_1", \
+              str(args.trace), \
               str(h_server.IP()), \
               "./private_test_key", \
               "StrictHostKeyChecking=no", \
               "cd /home/ubuntu/cs244/mosh_test/; ./term-replay-server", \
-              "term_trace_1", \
+              str(args.trace), \
               args.dir + "/ssh-std-out.txt", \
               args.dir + "/ssh-stderr-out.txt")
                
