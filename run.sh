@@ -22,8 +22,11 @@ plotpath=util
 
 iface=s0-eth1
 
-for tech in 3G 4GLTE WIFI 3G_FLAKY 4GLTE_FLAKY WIFI_FLAKY; do
-  for prog in MOSH SSH; do
+#for tech in 3G 4GLTE WIFI 3G_FLAKY 4GLTE_FLAKY WIFI_FLAKY; do
+#  for prog in MOSH SSH; do
+
+for tech in 3G; do
+for prog in SSH; do
   	dir=$rootdir/tech
 
   	python mosh_test.py --dir $dir --tech $tech --prog $prog

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-"CS244 Assignment 2: Buffer Sizing"
+"CS244 Assignment 3: MOSH"
 
 from mininet.topo import Topo
 from mininet.node import CPULimitedHost
@@ -56,13 +56,13 @@ SAMPLE_WAIT_SEC = 3.0
 #SAMPLE_WAIT_SEC = 2.0
 
 # Delay in milliseconds.  Will be changed based on test tech.
-DELAY = 50.0
+DELAY = 200.0
 
 # Bandwidth in MB/s.  Will be changed based on test tech.
-BANDWIDTH = 50.0
+BANDWIDTH = 5.0
 
 # Drop rate.  Will be changed based on test tech.
-DROP_RATE = 10.0
+DROP_RATE = 0
 
 # Tech to use.  MOSH or SSH.
 MOSH_PATH = "/usr/bin/mosh"
@@ -246,10 +246,35 @@ def format_fraction(fraction):
         return T.colored('%.3f' % fraction, 'green')
     return T.colored('%.3f' % fraction, 'red', attrs=["bold"])
 
-def test_response_time(iface):
-    """Test the response time using the given technology"""
-
-    #TBD
+def test_response_time(net):
+    h_server = net.get('server')
+    h_client = net.get('client')
+    
+    
+    print "h_server IP = " + str(h_server.IP())
+    print "h_client IP = " + str(h_client.IP())
+    #CLI(net);
+    
+    h_server.cmd("/usr/sbin/sshd -D&")
+    
+    print "Running SSH Test"
+               
+    ssh_cmd = '%s %s ssh ubuntu@%s -i %s -o %s "%s %s" > %s 2> %s' % \
+             ("/home/ubuntu/cs244/mosh_test/term-replay-client", \
+              "term_trace_1", \
+              str(h_server.IP()), \
+              "./private_test_key", \
+              "StrictHostKeyChecking=no", \
+              "cd /home/ubuntu/cs244/mosh_test/; ./term-replay-server", \
+              "term_trace_1", \
+              "ssh-std-out.txt", \
+              "ssh-stderr-out.txt")
+               
+    print "ssh_cmd\n\n"
+    print ssh_cmd
+    
+    h_client.cmd(ssh_cmd)
+    
     pass
 
 # TODO: Fill in the following function to verify the latency
@@ -313,7 +338,7 @@ def main():
 
     # TODO: change the interface for which queue size is adjusted
     # might be eth2
-    test_response_time(iface='s0-eth1')
+    test_response_time(net)
 
     # Store output.  It will be parsed by run.sh after the entire
     # sweep is completed.  Do not change this filename!
