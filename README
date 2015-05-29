@@ -2,8 +2,6 @@ Team:
 Kevin McKenzie (kmckenzi)
 Patrick Harvey (p1harvey)
 
-Setup:
-sudo apt-get install mosh
-yes "yes" | cpan IO::Pty::Easy
-ssh-keygen -t rsa -o ./private_test_key
-cat private_test_key.pub >> ~/.ssh/authorized_keys 
+sudo ./setup.sh
+sudo ./run.sh
+
