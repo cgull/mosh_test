@@ -37,8 +37,6 @@ DROP_RATE = 0.0
 # Jitter factor. Will change based on test tech.
 JITTER_FACTOR = 0.5
 
-
-
 def cprint(s, color, cr=True):
     """Print in color
        s: string to print
@@ -48,9 +46,7 @@ def cprint(s, color, cr=True):
     else:
         print T.colored(s, color),
 
-
 # Parse arguments
-
 parser = ArgumentParser(description="Mosh Testing")
 parser.add_argument('--tech', '-t',
                     dest="tech",
@@ -108,10 +104,8 @@ class StarTopo(Topo):
     "Star topology for Buffer Sizing experiment"
 
     def build(self, tech="3G", prog="MOSH"):
-          
-        # TODO: Fill in the following function to Create the experiment
-        # topology Set appropriate values for bandwidth, delay, and queue
-        # size.
+        
+        # set up the global variables for each type of connection
         
         global BANDWIDTH
         global DELAY
@@ -121,29 +115,31 @@ class StarTopo(Topo):
         if tech == "4G_LTE":
             BANDWIDTH = 26.0
             DELAY = 44.5
-            JITTER_FACTOR = .11
+            JITTER_FACTOR = .22
             DROP_RATE = 0.0
         elif tech == "4G_LTE_FLAKY":
             BANDWIDTH = 3.0
             DELAY = 67.5
-            JITTER_FACTOR = 0.30
+            JITTER_FACTOR = 0.60
             DROP_RATE = 0.063  
         elif tech == "3G":
             BANDWIDTH = 3.0
             DELAY = 61.5
-            JITTER_FACTOR = 0.24
+            JITTER_FACTOR = 0.48
             DROP_RATE = 0.013
         elif tech == "3G_FLAKY":
             BANDWIDTH = 0.9
             DELAY = 74.5
-            JITTER_FACTOR = 0.40
+            JITTER_FACTOR = 0.80
             DROP_RATE = 0.087
         elif tech == "WIFI":
             BANDWIDTH = 68
             DELAY = 4.0
-            JITTER_FACTOR = 0.38
+            JITTER_FACTOR = 0.76
             DROP_RATE = 0.0         
         
+        
+        # set up the two-host topology
         h_server = self.addHost('server')
         h_client = self.addHost('client')
         self.addLink(h_server, h_client, bw=BANDWIDTH, delay=(str(DELAY) + "ms"), loss=DROP_RATE, jitter=(str(DELAY * JITTER_FACTOR) + "ms"))
@@ -151,14 +147,14 @@ class StarTopo(Topo):
         return
 
 def test_response_time(net):
+    '''
+    Collect the response times for either MOSH or SSH by running the term-trace
+    '''
+    
     h_server = net.get('server')
     h_client = net.get('client')
     
-    
-    print "h_server IP = " + str(h_server.IP())
-    print "h_client IP = " + str(h_client.IP())
-    #CLI(net);
-    
+    # start the SSH server
     h_server.cmd("/usr/sbin/sshd -D&")
     
     print "Running " + args.prog + " Test with tech " + str(args.tech)
@@ -182,20 +178,12 @@ def test_response_time(net):
               str(args.trace), \
               args.dir + "/ssh-std-out.txt", \
               args.dir + "/ssh-stderr-out.txt")
-               
-#    mosh_cmd = '%s mosh %s --ssh=\'"ssh %s"\' \'"%s %s"\' > %s 2> %s' % \
-#              (cmd_invocation, \
-#              target_host, \
-#               str(ssh_flags), \
-#               "cd " + args.testdir + "; ./term-replay-server", \
-#               str(args.trace), \
-#               args.dir + "/mosh-std-out.txt", \
-#               args.dir + "/mosh-stderr-out.txt")
 
+    # set up IP tables to make sure connections can be made to server
     iptables_setp_cmd_a = 'sudo iptables -I INPUT 1 --proto udp -j ACCEPT'
     iptables_setp_cmd_b = 'sudo iptables -I OUTPUT 1 --proto udp -j ACCEPT'
 
-    mosh_cmd = '%s "mosh --bind-server=any --ssh=\\\"ssh %s\\\" -- %s sh -c \\\"%s %s\\\"" > %s 2> %s' % \
+    mosh_cmd = '%s "mosh --ssh=\\\"ssh %s\\\" -- %s sh -c \\\"%s %s\\\"" > %s 2> %s' % \
                (cmd_invocation, \
                 str(ssh_flags), \
                 target_host, \
@@ -204,12 +192,11 @@ def test_response_time(net):
                 args.dir + "/mosh-std-out.txt", \
                 args.dir + "/mosh-stderr-out.txt")
 
+    # run either MOSh or SSH test
     if (args.prog == "SSH"):
-        print "ssh_cmd\n\n"
         print ssh_cmd
         h_client.cmd(ssh_cmd)
     elif (args.prog == "MOSH"):
-        print "mosh_cmd\n\n"
         print mosh_cmd
         h_client.cmd(iptables_setp_cmd_a, shell=True)
         h_client.cmd(iptables_setp_cmd_b, shell=True)
@@ -218,10 +205,8 @@ def test_response_time(net):
         hc_proc = h_client.popen(mosh_cmd, shell=True)
         while(hc_proc.poll() == None):
             sleep(1)
-    pass
+    return
 
-# TODO: Fill in the following function to verify the latency
-# settings of your topology
 
 def verify_latency(net):
     "Verify link latency"
@@ -242,9 +227,6 @@ def verify_latency(net):
     print "System latency verified"
     return
 
-# TODO: Fill in the following function to verify the bandwidth
-# settings of your topology
-
 def verify_bandwidth(net):
     print "Verifying link bandwidths..."
     h_server = net.get('server')
@@ -253,6 +235,8 @@ def verify_bandwidth(net):
     # use iperf in mininet to get the bandwidth
     [ expBW, cBW, sBW ] = net.iperf(host_list, 'UDP', '%sM' % (BANDWIDTH), None, 10);
     outBW = sBW.split(' ')[0]
+    if "Kbits" in sBW:
+        outBW = float(outBW) / 1000
     if (abs(float(BANDWIDTH) - float(outBW)) > (JITTER_FACTOR * BANDWIDTH)):
         print "Bottleneck bandwidth not within %.0f%% of desired bandwidth" % (JITTER_FACTOR * 100)
         sys.exit(1)
@@ -271,24 +255,14 @@ def main():
     dumpNodeConnections(net.hosts)
     net.pingAll()
 
-    # TODO: verify latency and bandwidth of links in the topology you
-    # just created.
     verify_latency(net)
     
     verify_bandwidth(net)
 
     cprint("Starting experiment", "green")
 
-    # TODO: change the interface for which queue size is adjusted
-    # might be eth2
     test_response_time(net)
-
-    # Store output.  It will be parsed by run.sh after the entire
-    # sweep is completed.  Do not change this filename!
-    #output = "%d %s %.3f\n" % (total_flows, ret, ret * 1500.0)
-    #open("%s/result.txt" % args.dir, "w").write(output)
-
-
+    
     net.stop()
     Popen("killall -9 top bwm-ng tcpdump cat mnexec", shell=True).wait()
     end = time()
