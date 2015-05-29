@@ -1,7 +1,69 @@
+CS 244 '15: Reproducing Mosh Paper Results
+
 Team: 
 Kevin McKenzie (kmckenzi)
 Patrick Harvey (p1harvey)
 
+Setting up the test server on EC2:
+Create an EC2 instance following the intstructions listed here: 
+http://web.stanford.edu/class/cs244/ec2setup.html
+Select the AMI CS244-Spr15-Mininet or ami-cba48cfb on us-west-2
+Select the c3.large instance type
+Configure the security group to allow SSH access
+Log into your EC2 instance and verify mininet by running:
+sudo mn --link tc,bw=10 --test iperf
+For more detailed instructions, see the link above.
+
+Setup:
+git clone https://github.com/kjtmckenzie/mosh_test.git
+cd mosh_test
 sudo ./setup.sh
+
+Running the setup.sh script will install all the relevant packages
+needed for the Mosh experiment.  It may ask you for a "y" or "yes"
+to confirm the package installation.
+
+Run the experiment:
 sudo ./run.sh
 
+This will take roughly 2 hours, and it will generate 5 graphs in the 
+mosh_test directory: 3G.png, 3G_FLAKY.png, 4G_LTE.png, 4G_LTE_FLAKY.png
+and WIFI.png.  These show the same results of the Mosh paper for 
+various mobile technologies. The original Mosh-paper only included 
+results for 3G, so the 3G and 3G_FLAKY results are the most 
+representative of the results were are trying to emulate.
+
+We used the following statistics gathered from real-world data
+by using the FCC Speed Test app at various locations around Escondido
+Village.
+
+Note: DELAY measures 1/2 of the RTT.  JITTER is the amount any
+one link's bandwidth can change.  A JITTER_FACTOR of .5 means
+a link could go from .5x bandwidth to 1.5x bandwidth.  Bandwidth
+and delay are in milliseconds.
+
+Tech: 4G_LTE
+    BANDWIDTH = 26.0
+    DELAY = 44.5
+    JITTER_FACTOR = .22 
+    DROP_RATE = 0.0 
+Tech: 4G_LTE_FLAKY
+    BANDWIDTH = 3.0
+    DELAY = 67.5
+    JITTER_FACTOR = 0.60
+    DROP_RATE = 0.063  
+Tech: 3G
+    BANDWIDTH = 3.0
+    DELAY = 61.5
+    JITTER_FACTOR = 0.48
+    DROP_RATE = 0.013
+Tech: 3G_FLAKY
+    BANDWIDTH = 0.9
+    DELAY = 74.5
+    JITTER_FACTOR = 0.80
+    DROP_RATE = 0.087
+Tech: WIFI
+    BANDWIDTH = 68
+    DELAY = 4.0
+    JITTER_FACTOR = 0.76
+    DROP_RATE = 0.0  
