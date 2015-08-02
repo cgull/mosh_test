@@ -3,6 +3,7 @@
 use strict;
 use IO::Pty::Easy;
 use Time::HiRes;
+use List::Util qw{min max};
 
 use bytes;
 
@@ -43,30 +44,48 @@ my $last_user_sent = 0;
 while ( <LOGFILE> ) {
   chomp;
   my ( $timestamp, $tag ) = m{^(\d+) (\w+)};
+  my $len;
+  my $message;
+  if ( $tag =~ /^(HOST|USER)/m ) {
+    ( $len ) = m{\Q$tag\E (\d+)};
+    read LOGFILE, $message, $len;
+    my $nl;
+    read LOGFILE, $nl, 1;
+    die unless $nl eq "\n";
+  }
 
   if ( $tag eq "HOST" and $last_tag eq "USER" ) {
     # drain buffer
-    my $got = 0;
+    my $host_message = "";
     WAIT: while ( 1 ) {
-      my $x = $pty->read( 0.5 );
+      my $x = $pty->read( 0.001 );
+      my $host_recd = Time::HiRes::time();
       if ( defined $x ) {
-      	$got = 1;
       	print $x;
-        if (index($x, 'exit') != -1) {
-          exit 1;
-        }
       	if ( $timestamp - $last_user < 20000 ) {
-      	  my $host_recd = Time::HiRes::time();
       	  printf STDERR "Delay: %.10f\n", $host_recd - $last_user_sent;
-      	  $last_user = 0;
+      	  # $last_user = 0;
       	}
+	$host_message .= $x;
+	if ( $message eq $host_message ) {
+	  last WAIT;
+	}
       } else {
-      	if ( $got ) {
+      	if ( $host_recd - $last_user_sent > .2 ) {
       	  last WAIT;
       	}
       }
     }
+    if (index($host_message, 'exit') != -1) {
+	exit 1;
+    }
   } elsif ( $tag eq "USER" ) {
+    my $now = Time::HiRes::time();
+    my $sleeptime = ( $timestamp - $last_user ) - ( $now - $last_user_sent );
+    if ( $sleeptime > 0 ) {
+	$sleeptime = min( $sleeptime, 1000000 );
+	Time::HiRes::usleep( $sleeptime );
+    }
     $last_user = $timestamp;
   }
 
@@ -77,13 +96,6 @@ while ( <LOGFILE> ) {
     my ( $width, $height ) = m{SIZE (\d+) (\d+)};
     print STDERR "New size: $width x $height\n";
   } else {
-    my ( $len ) = m{\Q$tag\E (\d+)};
-    my $message;
-    read LOGFILE, $message, $len;
-    my $nl;
-    read LOGFILE, $nl, 1;
-    die unless $nl eq "\n";
-
     if ( $tag eq "USER" ) {
       $pty->write( $message ) or die;
       $last_user_sent = Time::HiRes::time();
