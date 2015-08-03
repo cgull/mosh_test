@@ -29,7 +29,7 @@ $pty->spawn( $command );
 #  exit;
 #}
 
-#sleep 10;
+sleep 2; #for session setup
 
 open LOGFILE, $logfile or die "$!";
 
